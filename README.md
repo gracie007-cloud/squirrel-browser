@@ -76,6 +76,7 @@ Click the extension icon → Settings to configure:
 create extension if not exists vector;
 
 -- Create notes table
+-- Using 1536 dimensions (works with all AI providers via auto-padding)
 create table notes (
   id uuid primary key default uuid_generate_v4(),
   content text not null,
@@ -93,7 +94,47 @@ with (lists = 100);
 
 -- Create index for tags
 create index notes_tags_idx on notes using gin(tags);
+
+-- Create function for vector similarity search
+create or replace function match_notes(
+  query_embedding vector(1536),
+  match_threshold float default 0.3,
+  match_count int default 10
+)
+returns table (
+  id uuid,
+  content text,
+  embedding vector(1536),
+  tags text[],
+  source jsonb,
+  created_at timestamptz,
+  updated_at timestamptz,
+  similarity float
+)
+language sql stable
+as $$
+  select
+    notes.id,
+    notes.content,
+    notes.embedding,
+    notes.tags,
+    notes.source,
+    notes.created_at,
+    notes.updated_at,
+    1 - (notes.embedding <=> query_embedding) as similarity
+  from notes
+  where 1 - (notes.embedding <=> query_embedding) > match_threshold
+  order by notes.embedding <=> query_embedding
+  limit match_count;
+$$;
 ```
+
+**✨ Works with ALL AI providers!** The extension automatically pads embeddings:
+- Gemini (768) → padded to 1536
+- Chrome AI (384-768) → padded to 1536  
+- OpenAI (1536) → used as-is
+
+**If you already created the table with wrong dimensions:**
 
 4. Copy project URL and anon key to Settings
 

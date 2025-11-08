@@ -5,10 +5,33 @@ export class SupabaseStorage implements StorageBackend {
   private client: SupabaseClient | null = null;
   private supabaseUrl: string;
   private supabaseKey: string;
+  private static readonly VECTOR_DIMENSIONS = 1536; // Max dimensions (OpenAI size)
 
   constructor(supabaseUrl: string, supabaseKey: string) {
     this.supabaseUrl = supabaseUrl;
     this.supabaseKey = supabaseKey;
+  }
+
+  /**
+   * Normalize embedding to standard dimensions by padding with zeros if needed
+   * This allows different AI providers (Gemini 768, Chrome AI 384, OpenAI 1536) to work together
+   */
+  private normalizeEmbedding(embedding: number[]): number[] {
+    if (embedding.length === SupabaseStorage.VECTOR_DIMENSIONS) {
+      return embedding;
+    }
+    
+    if (embedding.length > SupabaseStorage.VECTOR_DIMENSIONS) {
+      console.warn(`Embedding has ${embedding.length} dimensions, truncating to ${SupabaseStorage.VECTOR_DIMENSIONS}`);
+      return embedding.slice(0, SupabaseStorage.VECTOR_DIMENSIONS);
+    }
+    
+    // Pad with zeros
+    const normalized = [...embedding];
+    while (normalized.length < SupabaseStorage.VECTOR_DIMENSIONS) {
+      normalized.push(0);
+    }
+    return normalized;
   }
 
   async initialize(): Promise<void> {
@@ -38,18 +61,29 @@ export class SupabaseStorage implements StorageBackend {
   async saveNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
     const client = this.ensureClient();
     
+    // Normalize embedding dimensions
+    const normalizedEmbedding = this.normalizeEmbedding(note.embedding);
+    
     const { data, error } = await client
       .from('notes')
       .insert({
         content: note.content,
-        embedding: note.embedding,
+        embedding: normalizedEmbedding,
         tags: note.tags,
         source: note.source
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase insert error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Failed to save note to Supabase: ${error.message}. ${error.hint || ''}`);
+    }
 
     return {
       id: data.id,
@@ -122,11 +156,16 @@ export class SupabaseStorage implements StorageBackend {
   async updateNote(id: string, updates: Partial<Note>): Promise<Note> {
     const client = this.ensureClient();
     
+    // Normalize embedding if present
+    const normalizedEmbedding = updates.embedding 
+      ? this.normalizeEmbedding(updates.embedding)
+      : undefined;
+    
     const { data, error } = await client
       .from('notes')
       .update({
         content: updates.content,
-        embedding: updates.embedding,
+        embedding: normalizedEmbedding,
         tags: updates.tags,
         source: updates.source,
         updated_at: new Date().toISOString()
@@ -172,14 +211,27 @@ export class SupabaseStorage implements StorageBackend {
   async searchByVector(embedding: number[], limit: number = 10): Promise<Note[]> {
     const client = this.ensureClient();
     
-    // Use pgvector's cosine similarity
+    // Normalize query embedding dimensions
+    const normalizedEmbedding = this.normalizeEmbedding(embedding);
+    console.log('Supabase: Normalized embedding to', normalizedEmbedding.length, 'dimensions');
+    
+    // Use pgvector's cosine similarity with lower threshold
     const { data, error } = await client.rpc('match_notes', {
-      query_embedding: embedding,
-      match_threshold: 0.7,
+      query_embedding: normalizedEmbedding,
+      match_threshold: 0.3, // Lowered from 0.7 for better recall
       match_count: limit
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase RPC error:', error);
+      throw error;
+    }
+
+    console.log('Supabase: match_notes returned', data?.length || 0, 'results');
+
+    if (!data || data.length === 0) {
+      return [];
+    }
 
     return data.map((d: any) => ({
       id: d.id,

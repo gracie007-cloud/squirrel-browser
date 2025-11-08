@@ -81,8 +81,15 @@ async function saveNote(content: string, url: string, pageTitle: string): Promis
         timestamp: Date.now()
       }
     });
-  } catch (error) {
-    console.error('Error saving note:', error);
+  } catch (error: any) {
+    // Log detailed error information
+    console.error('Error saving note:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      fullError: error
+    });
     throw error;
   }
 }
@@ -180,12 +187,24 @@ async function askQuestion(question: string) {
 
     // Get relevant notes using vector search
     const queryEmbedding = await aiService.generateEmbedding(question);
+    console.log('Query embedding generated, dimensions:', queryEmbedding.length);
+    
     const relevantNotes = await storage.searchByVector(queryEmbedding, 5);
+    console.log('Vector search returned', relevantNotes.length, 'notes');
+
+    // If no results from vector search, try getting recent notes as fallback
+    if (relevantNotes.length === 0) {
+      console.log('No vector matches, falling back to recent notes');
+      const recentNotes = await storage.getRecentNotes(5);
+      relevantNotes.push(...recentNotes);
+    }
 
     // Combine note contents as context
     const context = relevantNotes
       .map(note => `[${note.tags.join(', ')}] ${note.content}`)
       .join('\n\n');
+
+    console.log('Context length:', context.length, 'chars');
 
     // Generate answer
     const answer = await aiService.answerQuestion(question, context);
