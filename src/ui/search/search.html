@@ -3,128 +3,184 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Notes - Search</title>
+  <title>Squirrel - Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="search.css">
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h1>AI Notes</h1>
-        <span class="subtitle">Search & Chat</span>
-      </div>
-
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="search">Search</button>
-        <button class="tab-btn" data-tab="chat">AI Chat</button>
-        <button class="tab-btn" data-tab="recent">Recent</button>
-      </div>
-
-      <!-- Search Tab -->
-      <div id="searchTab" class="tab-content active">
-        <div class="search-section">
-          <div class="search-input-wrapper">
-            <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <input type="text" id="searchInput" placeholder="Search notes..." />
-          </div>
-          <button id="searchBtn">Search</button>
-        </div>
-
-        <div class="notes-list-container">
-          <div id="searchResults" class="notes-list">
-            <div class="empty">Search for notes to see results</div>
+  <div class="app-container">
+    <!-- Main Content Area -->
+    <main class="main-area">
+      <!-- Header -->
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">🐿️</span>
+          <div class="logo-text">
+            <h1>Squirrel</h1>
+            <span class="tagline">Search your stash</span>
           </div>
         </div>
-      </div>
-
-      <!-- Chat Tab -->
-      <div id="chatTab" class="tab-content">
-        <div class="chat-input-section">
-          <textarea id="chatInput" placeholder="Ask AI about your notes..." rows="3"></textarea>
-          <button id="chatSendBtn">Ask AI</button>
-        </div>
-
-        <div class="chat-container" id="chatContainer">
-          <div class="chat-welcome">
-            <div class="welcome-title">Ask AI Anything</div>
-            <div class="welcome-text">Ask questions about your saved notes and get AI-powered answers.</div>
-            <div class="welcome-examples">
-              <strong>Try:</strong>
-              <div>"What did I save about machine learning?"</div>
-              <div>"Summarize my productivity tips"</div>
-              <div>"Show me recipes I saved"</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Tab -->
-      <div id="recentTab" class="tab-content">
-        <div class="notes-list-container">
-          <div id="recentNotes" class="notes-list">
-            <div class="loading">Loading recent notes...</div>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <div id="detailView" class="detail-section" style="display: none;">
-        <div class="detail-header">
-          <h2>Note Details</h2>
-          <div class="detail-actions">
-            <button id="closeDetailBtn" class="btn btn-secondary">Close</button>
-            <button id="deleteNoteBtn" class="btn btn-danger">Delete</button>
-          </div>
-        </div>
-
-        <div class="detail-content">
-          <div class="detail-item">
-            <div class="detail-label">Content</div>
-            <div class="detail-value" id="noteContent"></div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-label">Tags</div>
-            <div class="note-tags" id="noteTags"></div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-label">Source</div>
-            <div class="detail-value">
-              <a id="noteUrl" class="detail-link" href="#" target="_blank"></a>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-label">Saved</div>
-            <div class="detail-value" id="noteTimestamp"></div>
-          </div>
-        </div>
-
-        <div class="ai-section">
-          <div class="ai-input-wrapper">
-            <input type="text" id="questionInput" placeholder="Ask a question about this note..." />
-            <button id="askBtn">Ask AI</button>
-          </div>
-
-          <div id="answerSection">
-            <div class="answer-label">Answer</div>
-            <div class="answer-text" id="answerText"></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="emptyView" class="empty-state">
-        <div class="empty-icon">
-          <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        <button id="openOptions" class="btn-ghost btn-icon" title="Settings">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
+        </button>
+      </header>
+
+      <!-- Central Search Area -->
+      <div class="search-hero">
+        <div class="search-hero-content">
+          <!-- Tabs -->
+          <div class="mode-tabs" role="tablist">
+            <button class="mode-tab active" role="tab" data-mode="search" aria-selected="true">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <span>Search</span>
+            </button>
+            <button class="mode-tab" role="tab" data-mode="chat" aria-selected="false">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              <span>AI Chat</span>
+            </button>
+            <button class="mode-tab" role="tab" data-mode="recent" aria-selected="false">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>Recent</span>
+            </button>
+          </div>
+
+          <!-- Search Mode -->
+          <div id="searchMode" class="mode-panel active">
+            <div class="search-input-large">
+              <svg class="search-icon-large" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search your notes..." 
+                aria-label="Search notes"
+                autofocus
+              />
+              <button id="searchBtn" class="btn-search">
+                Search
+              </button>
+            </div>
+            <p class="search-hint">Press Enter to search • Try keywords or phrases</p>
+          </div>
+
+          <!-- Chat Mode -->
+          <div id="chatMode" class="mode-panel">
+            <div class="chat-input-large">
+              <svg class="chat-icon-large" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              <textarea 
+                id="chatInput" 
+                placeholder="Ask anything about your notes..." 
+                rows="1"
+                aria-label="Chat with AI"
+              ></textarea>
+              <button id="chatSendBtn" class="btn-search">
+                Ask AI
+              </button>
+            </div>
+            <p class="search-hint">Ask questions like "What did I save about React?"</p>
+          </div>
+
+          <!-- Recent Mode -->
+          <div id="recentMode" class="mode-panel">
+            <div class="recent-notes-hero">
+              <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <h3>Recent Notes</h3>
+              <p>Your last 5 saved notes appear below</p>
+            </div>
+          </div>
         </div>
-        <div class="empty-title">Search Your Notes</div>
-        <div class="empty-description">Search for notes using keywords, or use AI Chat to ask questions about your saved content.</div>
+      </div>
+
+      <!-- Results Area -->
+      <div class="results-area">
+        <!-- Search Results -->
+        <div id="searchResults" class="results-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatContainer" class="chat-messages">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Recent Notes -->
+        <div id="recentNotes" class="results-grid">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading recent notes...</p>
+          </div>
+        </div>
+
+        <!-- Note Detail Modal -->
+        <div id="noteDetail" class="note-detail-modal" style="display: none;">
+          <div class="note-detail-content">
+            <div class="note-detail-header">
+              <h2>Note Details</h2>
+              <div class="note-detail-actions">
+                <button id="closeDetailBtn" class="btn-ghost btn-icon">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="note-detail-body">
+              <div class="detail-section">
+                <label class="detail-label">Content</label>
+                <div class="detail-value" id="noteContent"></div>
+              </div>
+
+              <div class="detail-section">
+                <label class="detail-label">Tags</label>
+                <div class="detail-tags" id="noteTags"></div>
+              </div>
+
+              <div class="detail-section">
+                <label class="detail-label">Source</label>
+                <a id="noteUrl" class="detail-link" href="#" target="_blank"></a>
+              </div>
+
+              <div class="detail-section">
+                <label class="detail-label">Saved</label>
+                <div class="detail-value" id="noteTimestamp"></div>
+              </div>
+
+              <div class="detail-section">
+                <label class="detail-label">Ask AI</label>
+                <div class="ai-input-wrapper">
+                  <input type="text" id="questionInput" placeholder="Ask a question about this note..." class="input"/>
+                  <button id="askBtn" class="btn-primary">Ask</button>
+                </div>
+                <div id="answerSection" class="answer-box" style="display: none;">
+                  <p id="answerText"></p>
+                </div>
+              </div>
+
+              <div class="detail-footer">
+                <button id="deleteNoteBtn" class="btn-destructive">Delete Note</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>

@@ -2,6 +2,7 @@
 
 let selectedNoteId: string | null = null;
 let chatHistory: Array<{ role: 'user' | 'ai'; content: string; sources?: any[] }> = [];
+let currentMode: 'search' | 'chat' | 'recent' = 'search';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
@@ -9,11 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
-  // Tab switching
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.getAttribute('data-tab');
-      if (tab) switchTab(tab);
+  // Mode switching
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.getAttribute('data-mode') as 'search' | 'chat' | 'recent';
+      if (mode) switchMode(mode);
     });
   });
 
@@ -21,76 +22,107 @@ function setupEventListeners() {
   const searchInput = document.getElementById('searchInput') as HTMLInputElement;
   const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
 
-  searchBtn.addEventListener('click', () => performSearch(searchInput.value));
-  searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') performSearch(searchInput.value);
-  });
+  if (searchInput && searchBtn) {
+    searchBtn.addEventListener('click', () => performSearch(searchInput.value));
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') performSearch(searchInput.value);
+    });
+  }
 
   // Chat functionality
   const chatInput = document.getElementById('chatInput') as HTMLTextAreaElement;
   const chatSendBtn = document.getElementById('chatSendBtn') as HTMLButtonElement;
 
-  chatSendBtn.addEventListener('click', () => sendChatMessage(chatInput.value));
-  chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendChatMessage(chatInput.value);
-    }
-  });
+  if (chatInput && chatSendBtn) {
+    chatSendBtn.addEventListener('click', () => sendChatMessage(chatInput.value));
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage(chatInput.value);
+      }
+    });
+    // Auto-resize textarea
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    });
+  }
 
-  // AI question functionality (for individual notes)
-  const questionInput = document.getElementById('questionInput') as HTMLInputElement;
-  const askBtn = document.getElementById('askBtn') as HTMLButtonElement;
+  // Note detail modal
+  const closeDetailBtn = document.getElementById('closeDetailBtn');
+  if (closeDetailBtn) {
+    closeDetailBtn.addEventListener('click', closeNoteDetail);
+  }
 
-  askBtn.addEventListener('click', () => askQuestion(questionInput.value));
-  questionInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') askQuestion(questionInput.value);
-  });
-
-  // Close detail view
-  document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
-    showEmptyState();
-  });
-
-  // Delete note
-  document.getElementById('deleteNoteBtn')?.addEventListener('click', async () => {
-    if (selectedNoteId && confirm('Delete this note?')) {
-      try {
-        await chrome.runtime.sendMessage({
-          action: 'deleteNote',
-          data: { id: selectedNoteId }
-        });
-        showEmptyState();
+  const deleteNoteBtn = document.getElementById('deleteNoteBtn');
+  if (deleteNoteBtn) {
+    deleteNoteBtn.addEventListener('click', async () => {
+      if (selectedNoteId && confirm('Delete this note?')) {
+        await deleteNote(selectedNoteId);
+        closeNoteDetail();
         // Refresh current view
-        const activeTab = document.querySelector('.tab-btn.active')?.getAttribute('data-tab');
-        if (activeTab === 'search') {
+        if (currentMode === 'search') {
           const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-          if (searchInput.value) performSearch(searchInput.value);
-        } else if (activeTab === 'recent') {
+          if (searchInput?.value) performSearch(searchInput.value);
+        } else if (currentMode === 'recent') {
           loadRecentNotes();
         }
-      } catch (error) {
-        console.error('Delete error:', error);
-        alert('Failed to delete note');
       }
-    }
-  });
+    });
+  }
+
+  // Ask question about note
+  const askBtn = document.getElementById('askBtn');
+  const questionInput = document.getElementById('questionInput') as HTMLInputElement;
+  if (askBtn && questionInput) {
+    askBtn.addEventListener('click', () => askQuestion(questionInput.value));
+    questionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') askQuestion(questionInput.value);
+    });
+  }
+
+  // Settings button
+  const openOptionsBtn = document.getElementById('openOptions');
+  if (openOptionsBtn) {
+    openOptionsBtn.addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  }
 }
 
-function switchTab(tabName: string) {
-  // Update tab buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+function switchMode(mode: 'search' | 'chat' | 'recent') {
+  currentMode = mode;
+
+  // Update tabs
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    const isActive = tab.getAttribute('data-mode') === mode;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive.toString());
   });
 
-  // Update tab contents
-  document.querySelectorAll('.tab-content').forEach(content => {
-    content.classList.toggle('active', content.id === `${tabName}Tab`);
+  // Update mode panels
+  document.querySelectorAll('.mode-panel').forEach(panel => {
+    panel.classList.remove('active');
   });
+  const activePanel = document.getElementById(`${mode}Mode`);
+  if (activePanel) activePanel.classList.add('active');
 
-  // Load data if needed
-  if (tabName === 'recent') {
-    loadRecentNotes();
+  // Update results visibility
+  const searchResults = document.getElementById('searchResults');
+  const chatContainer = document.getElementById('chatContainer');
+  const recentNotes = document.getElementById('recentNotes');
+
+  if (searchResults) searchResults.style.display = mode === 'search' ? 'grid' : 'none';
+  if (chatContainer) chatContainer.style.display = mode === 'chat' ? 'flex' : 'none';
+  if (recentNotes) recentNotes.style.display = mode === 'recent' ? 'grid' : 'none';
+
+  // Focus appropriate input
+  if (mode === 'search') {
+    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    if (searchInput) searchInput.focus();
+  } else if (mode === 'chat') {
+    const chatInput = document.getElementById('chatInput') as HTMLTextAreaElement;
+    if (chatInput) chatInput.focus();
   }
 }
 
@@ -100,7 +132,7 @@ async function performSearch(query: string) {
   const resultsContainer = document.getElementById('searchResults');
   if (!resultsContainer) return;
 
-  resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+  resultsContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Searching...</p></div>';
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -120,16 +152,16 @@ function displaySearchResults(notes: any[]) {
   if (!resultsContainer) return;
 
   if (notes.length === 0) {
-    resultsContainer.innerHTML = '<div class="empty">No notes found</div>';
+    resultsContainer.innerHTML = '<div class="empty">No notes found matching your search.</div>';
     return;
   }
 
   resultsContainer.innerHTML = notes
-    .map(note => createNoteItem(note))
+    .map(note => createNoteCard(note))
     .join('');
 
   // Add click listeners
-  resultsContainer.querySelectorAll('.note-item').forEach((el, idx) => {
+  resultsContainer.querySelectorAll('.note-card').forEach((el, idx) => {
     el.addEventListener('click', () => showNoteDetail(notes[idx]));
   });
 }
@@ -138,25 +170,25 @@ async function loadRecentNotes() {
   const recentContainer = document.getElementById('recentNotes');
   if (!recentContainer) return;
 
-  recentContainer.innerHTML = '<div class="loading">Loading...</div>';
+  recentContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading recent notes...</p></div>';
 
   try {
     const response = await chrome.runtime.sendMessage({
       action: 'getRecentNotes',
-      data: { limit: 5 }
+      data: { limit: 12 }
     });
 
     if (response.notes.length === 0) {
-      recentContainer.innerHTML = '<div class="empty">No notes yet</div>';
+      recentContainer.innerHTML = '<div class="empty">No notes yet. Start saving content from any webpage!</div>';
       return;
     }
 
     recentContainer.innerHTML = response.notes
-      .map((note: any) => createNoteItem(note))
+      .map((note: any) => createNoteCard(note))
       .join('');
 
     // Add click listeners
-    recentContainer.querySelectorAll('.note-item').forEach((el, idx) => {
+    recentContainer.querySelectorAll('.note-card').forEach((el, idx) => {
       el.addEventListener('click', () => showNoteDetail(response.notes[idx]));
     });
   } catch (error) {
@@ -165,17 +197,17 @@ async function loadRecentNotes() {
   }
 }
 
-function createNoteItem(note: any): string {
+function createNoteCard(note: any): string {
   const date = new Date(note.createdAt).toLocaleDateString();
   const tags = note.tags
     .map((tag: string) => `<span class="tag">${escapeHtml(tag)}</span>`)
     .join('');
 
   return `
-    <div class="note-item" data-id="${note.id}">
-      <div class="note-content">${escapeHtml(truncate(note.content, 100))}</div>
+    <div class="note-card" data-id="${note.id}">
+      <div class="note-content">${escapeHtml(truncate(note.content, 150))}</div>
       ${tags ? `<div class="note-tags">${tags}</div>` : ''}
-      <div class="note-meta">${date}</div>
+      <div class="note-meta">${date} • ${escapeHtml(truncate(note.source.title, 40))}</div>
     </div>
   `;
 }
@@ -186,14 +218,11 @@ async function sendChatMessage(message: string) {
   const chatInput = document.getElementById('chatInput') as HTMLTextAreaElement;
   const chatContainer = document.getElementById('chatContainer') as HTMLDivElement;
 
+  if (!chatInput || !chatContainer) return;
+
   // Clear input
   chatInput.value = '';
-
-  // Remove welcome message if present
-  const welcome = chatContainer.querySelector('.chat-welcome');
-  if (welcome) {
-    welcome.remove();
-  }
+  chatInput.style.height = 'auto';
 
   // Add user message
   chatHistory.push({ role: 'user', content: message });
@@ -228,8 +257,9 @@ async function sendChatMessage(message: string) {
 
 function appendChatMessage(role: 'user' | 'ai', content: string, sources?: any[]): string {
   const chatContainer = document.getElementById('chatContainer') as HTMLDivElement;
-  const messageId = `msg-${Date.now()}`;
+  if (!chatContainer) return '';
 
+  const messageId = `msg-${Date.now()}`;
   const avatarText = role === 'user' ? 'U' : 'AI';
   
   const sourcesHtml = sources && sources.length > 0 ? `
@@ -237,7 +267,7 @@ function appendChatMessage(role: 'user' | 'ai', content: string, sources?: any[]
       <div class="chat-sources-title">Sources (${sources.length}):</div>
       ${sources.map((source: any) => `
         <div class="chat-source-item" title="${escapeHtml(source.content)}">
-          ${escapeHtml(truncate(source.content, 60))}
+          ${escapeHtml(truncate(source.content, 80))}
         </div>
       `).join('')}
     </div>
@@ -262,21 +292,17 @@ function appendChatMessage(role: 'user' | 'ai', content: string, sources?: any[]
 function showNoteDetail(note: any) {
   selectedNoteId = note.id;
 
-  // Hide empty state, show detail view
-  const emptyView = document.getElementById('emptyView');
-  const detailView = document.getElementById('detailView');
-  const answerSection = document.getElementById('answerSection');
-
-  if (emptyView) emptyView.style.display = 'none';
-  if (detailView) detailView.style.display = 'flex';
-  if (answerSection) answerSection.classList.remove('show');
-
-  // Populate note details
+  const modal = document.getElementById('noteDetail');
   const noteContent = document.getElementById('noteContent');
   const noteTags = document.getElementById('noteTags');
   const noteUrl = document.getElementById('noteUrl') as HTMLAnchorElement;
   const noteTimestamp = document.getElementById('noteTimestamp');
+  const answerSection = document.getElementById('answerSection');
+  const questionInput = document.getElementById('questionInput') as HTMLInputElement;
 
+  if (!modal) return;
+
+  // Populate content
   if (noteContent) noteContent.textContent = note.content;
   
   if (noteTags) {
@@ -294,18 +320,17 @@ function showNoteDetail(note: any) {
     noteTimestamp.textContent = new Date(note.createdAt).toLocaleString();
   }
 
-  // Clear question input
-  const questionInput = document.getElementById('questionInput') as HTMLInputElement;
+  if (answerSection) answerSection.style.display = 'none';
   if (questionInput) questionInput.value = '';
+
+  // Show modal
+  modal.style.display = 'block';
 }
 
-function showEmptyState() {
+function closeNoteDetail() {
+  const modal = document.getElementById('noteDetail');
+  if (modal) modal.style.display = 'none';
   selectedNoteId = null;
-  const emptyView = document.getElementById('emptyView');
-  const detailView = document.getElementById('detailView');
-
-  if (emptyView) emptyView.style.display = 'flex';
-  if (detailView) detailView.style.display = 'none';
 }
 
 async function askQuestion(question: string) {
@@ -316,7 +341,7 @@ async function askQuestion(question: string) {
 
   if (!answerSection || !answerText) return;
 
-  answerSection.classList.add('show');
+  answerSection.style.display = 'block';
   answerText.textContent = 'Thinking...';
 
   try {
@@ -329,6 +354,17 @@ async function askQuestion(question: string) {
   } catch (error) {
     console.error('Question error:', error);
     answerText.textContent = 'Failed to get answer. Please try again.';
+  }
+}
+
+async function deleteNote(id: string) {
+  try {
+    await chrome.runtime.sendMessage({
+      action: 'deleteNote',
+      data: { id }
+    });
+  } catch (error) {
+    console.error('Delete error:', error);
   }
 }
 

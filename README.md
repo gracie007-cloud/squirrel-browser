@@ -142,14 +142,7 @@ src/
    - Search transcripts and jump to exact moments
    - *Because squirrels hoard more than just text*
 
-2. **Enhanced UI/UX** ✨
-   - Better visualization for note relationships
-   - Keyboard shortcuts
-   - Bulk operations (export, delete)
-   - Note editing
-   - *Make hoarding beautiful*
-
-3. **Improved AI** 🧠
+2. **Improved AI** 🧠
    - Better embeddings (fine-tuned models)
    - Advanced tokenization
    - Context-aware search ranking

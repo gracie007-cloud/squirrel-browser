@@ -51,11 +51,13 @@ function setupEventListeners() {
 function switchTab(tabName: string) {
   // Update tab buttons
   document.querySelectorAll('.tab').forEach(tab => {
-    tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
+    const isActive = tab.getAttribute('data-tab') === tabName;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive.toString());
   });
 
   // Update tab content
-  document.querySelectorAll('.tab-content').forEach(content => {
+  document.querySelectorAll('.tab-panel').forEach(content => {
     content.classList.toggle('active', content.id === `${tabName}Tab`);
   });
 }
